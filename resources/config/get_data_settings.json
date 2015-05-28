@@ -1,0 +1,24 @@
+{
+	"active_data":{
+		"url":"http://activedata.allizom.org/query",
+		"output":"results/active-data.tab"
+	},
+	"bugs":{
+		"url":"http://elasticsearch1.bugs.scl3.mozilla.com:9200/public_bugs/bug_version/_search",
+		"output":"results/bugs.tab"
+	},
+	"comments":{
+		"url":"http://elasticsearch1.bugs.scl3.mozilla.com:9200/public_comments/bug_comment/_search",
+		"output":"results/comments.tab"
+	},
+	"output":{
+		"json":"results/subtests.json",
+		"tab":"results/subtests.tab",
+		"activedata":"results/activedata.tab"
+	},
+	"constants": {
+		"pyLibrary.env.http.default_headers": {
+			"From": "https://bugzilla.mozilla.org/show_bug.cgi?id=1161268"
+		}
+	}
+}
