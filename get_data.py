@@ -42,13 +42,20 @@ blacklist = [
         "application crashed"
     ]
 
+timeouts = [
+    "command timed out: 4800",
+    "Test timed out"
+]
+
+
+
 def get_active_data(settings):
     query = {
-    "limit": 1000,
+    "limit": 100000,
     "from": "unittest",
     "where": {"and": [
         {"eq": {"result.ok": False}},
-        {"gt": {"run.timestamp": "{{today-week}}"}}
+        {"gt": {"run.timestamp": RECENT.milli}}
     ]},
     "select": [
         "result.ok",
@@ -56,8 +63,10 @@ def get_active_data(settings):
         "build.platform",
         "build.release",
         "build.revision",
-        "build.type"
+        "build.type",
         "build.revision",
+        "build.date",
+        "run.timestamp",
         "run.suite",
         "run.chunk",
         "result.test",
@@ -67,7 +76,7 @@ def get_active_data(settings):
     }
     result = http.post("http://activedata.allizom.org/query", data=convert.unicode2utf8(convert.value2json(query)))
 
-    query_result = convert.json2value(result.all_content)
+    query_result = convert.json2value(convert.utf82unicode(result.all_content))
 
     tab = convert.table2tab(query_result.header, query_result.data)
     File(settings.output.activedata).write(tab)
@@ -75,7 +84,7 @@ def get_active_data(settings):
 
 
 def get_bugs(settings):
-    request_bugs = {
+    request_bugs = convert.unicode2utf8(convert.value2json({
         "query": {"filtered": {
             "query": {"match_all": {}},
             "filter": {"and": [
@@ -89,8 +98,9 @@ def get_bugs(settings):
         "sort": [],
         "facets": {},
         "fields": ["bug_id", "bug_status", "short_desc", "status_whiteboard"]
-    }
-    bugs = UniqueIndex(["bug_id"], convert.json2value(convert.utf82unicode(http.post(settings.bugs.url, data=request_bugs).all_content)).hits.hits.fields)
+    }))
+    result = http.post(settings.bugs.url, data=request_bugs).all_content
+    bugs = UniqueIndex(["bug_id"], convert.json2value(convert.utf82unicode(result)).hits.hits.fields)
 
     for i, b in enumerate(bugs):
         try:
@@ -151,6 +161,7 @@ def parse_short_desc(bug):
         bug.result.test = bug.result.test[13:]
 
 def parse_comment(bug, comment):
+    bug = bug.copy()
     subtests = []
     lines = comment.comment.split('\n')
     for line in lines:
@@ -192,6 +203,7 @@ def parse_comment(bug, comment):
                 subtest.subtest = parse_status(parts[0])
                 subtest.subtest.name = parts[1].strip()
                 subtest.subtest.message = parts[2].strip()
+                subtest.subtest.in_ad = any(subtest.subtest.message.find(t)>=0 for t in timeouts)
                 set_default(subtest, bug)
                 subtest.subtest.comment_line = line
                 subtest.subtest.report_ts = Date(comment.modified_ts)
@@ -244,7 +256,7 @@ def main():
 
         big_data.MAX_STRING_SIZE = 100 * 1000 * 1000
 
-        get_active_data(settings)
+        # get_active_data(settings)
         get_bugs(settings)
     except Exception, e:
         Log.error("Problem with etl", e)
